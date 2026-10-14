@@ -1,0 +1,104 @@
+BLOODBORNE PC PORT - CONTROLS
+=============================
+
+A controller is recommended. The port supports controllers out of the box
+(PS4/PS5/Xbox/most others through SDL3). Plug it in before launching.
+
+
+1) CONTROLLER (Bloodborne's normal layout)
+------------------------------------------
+PlayStation        Xbox          Action
+-----------        ----          ------
+Left stick         Left stick    Move
+Right stick        Right stick   Camera
+R1                 RB            Attack (right-hand weapon)
+R2                 RT            Strong attack (hold to charge)
+L1                 LB            Transform trick weapon
+L2                 LT            Fire gun / left-hand item
+Circle             B             Dodge / quickstep (hold to dash)
+Cross              A             Interact / pick up / talk
+Triangle           Y             Use Blood Vial (heal)
+Square             X             Use quick item
+R3 (click)         RS click      Lock on / reset camera
+L3 (click)         LS click      Jump (while dashing)
+D-pad Left/Right   D-pad         Switch left / right weapon
+D-pad Up/Down      D-pad         Cycle items / quick items
+Options            Menu          Menu
+Touchpad           View          Gestures
+
+Tip: in-game, open the System menu > Controls to see the game's own
+button layout picture.
+
+
+2) PORT HOTKEYS (added by the PC port)
+--------------------------------------
+Insert  (or L3 + R3 on controller)   Open/close the port settings overlay
+                                     (resolution, FPS, FSR, graphics)
+Space + Z  (or hold Cross + press L3) Cycle free camera modes
+                                     (only if Free Camera is enabled in the
+                                     launcher or overlay)
+Tab                                  Left touchpad  (opens the Debug menu if
+                                     DbgFont14h.ccm/.tpf are in
+                                     dvdroot_ps4\font)
+Backspace                            Right touchpad
+Esc / Enter                          Cancel / confirm in text input boxes
+
+Overlay settings are saved to bbport.ini.
+
+
+3) KEYBOARD
+-----------
+(From the port's source code, src/runtime_pad.c. The keyboard acts as a
+virtual PS4 controller. There is NO mouse - the camera is on I/J/K/L.)
+
+Key                     PS4 button   Action in Bloodborne
+---                     ----------   --------------------
+W / A / S / D           Left stick   Move
+I / J / K / L           Right stick  Camera (I up, K down, J left, L right)
+3                       R1           Attack
+F                       R2           Strong attack (hold to charge)
+1                       L1           Transform trick weapon
+R                       L2           Fire gun / left-hand item
+Left Shift  (or Esc)    Circle       Dodge / hold to dash / back in menus
+Space (or Enter)        Cross        Interact / confirm
+Q                       Triangle     Use Blood Vial (heal)
+E                       Square       Use quick item
+C                       R3           Lock on / reset camera
+Z                       L3           Jump (while dashing)
+Arrow keys              D-pad        Switch weapons / cycle items
+F1  (or O)              Options      Menu
+Tab                     Touchpad L   Gestures (and Debug menu if installed)
+Backspace               Touchpad R
+
+Notes:
+- Movement is all-or-nothing (no walking slowly) and the camera turns at
+  one fixed speed, because keys act like a fully pushed stick.
+- Keyboard and controller both work at the same time.
+
+
+4) HOW TO REBIND
+----------------
+The port has NO built-in rebinding menu or keybind config file. Use one
+of these instead:
+
+Controller buttons -> Steam Input (free, easiest)
+  1. Steam > Games > "Add a Non-Steam Game to My Library..."
+  2. Browse to  C:\External Apps\Games\Bloodborne\out\bbport.exe  and add it.
+     (Or add launch_gui.bat via Browse > "All files".)
+  3. Right-click it in Steam > Properties > Controller > Enable Steam Input.
+  4. Launch it from Steam, press the Steam/PS button > Controller Settings
+     > Edit Layout, and remap any button.
+
+  Alternatives: DS4Windows (PlayStation pads, free) or reWASD (paid).
+
+Keyboard keys -> Microsoft PowerToys "Keyboard Manager" (free)
+  1. Install PowerToys from the Microsoft Store.
+  2. Keyboard Manager > Remap a key (or Remap a shortcut).
+  3. Set "Target app" to  bbport.exe  so the remap only applies in-game.
+
+Keyboard and mouse (proper PC-style controls)
+  Use reWASD (paid) to turn keyboard + mouse into a virtual controller.
+  Then bind WASD, mouse camera, mouse buttons for R1/R2, etc. however
+  you like. The game sees a controller, so every action is rebindable.
+  (Steam Input can't do this: it only maps controllers TO keyboard, not
+  keyboard to a controller.)
