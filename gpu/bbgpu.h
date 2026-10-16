@@ -90,6 +90,20 @@ enum BbAction {
 int bbgpu_get_action_binding(int action);
 void bbgpu_get_all_action_bindings(int *out_bindings, int count);
 void bbgpu_set_action_binding(int action, int code);
+
+/* Controller buttons, named after the PS4 pad and positional like SDL (cross = south).
+   Used both as the game's button (output) and the physical button (source). */
+enum BbPadButton {
+    BB_PAD_CROSS = 0, BB_PAD_CIRCLE, BB_PAD_SQUARE, BB_PAD_TRIANGLE,
+    BB_PAD_L1, BB_PAD_R1, BB_PAD_L2, BB_PAD_R2, BB_PAD_L3, BB_PAD_R3,
+    BB_PAD_OPTIONS, BB_PAD_SHARE, BB_PAD_TOUCHPAD,
+    BB_PAD_UP, BB_PAD_DOWN, BB_PAD_LEFT, BB_PAD_RIGHT,
+    BB_PAD_COUNT
+};
+#define BB_PAD_NONE (-1)
+
+/* out[game button] = physical button that presses it, or BB_PAD_NONE. */
+void bbgpu_get_pad_map(int *out, int count);
 #ifdef __cplusplus
 }
 #endif

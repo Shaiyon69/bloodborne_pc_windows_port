@@ -24,6 +24,17 @@ const char* KeyCodeToString(int code);
 int StringToKeyCode(const char* name);
 void ResetKeybindsToDefaults();
 
+struct PadInfo {
+    const char* name;     ///< bbport.ini value and the key suffix (pad.<name>)
+    const char* label_en; ///< the button, then what the game does with it
+    const char* label_ru;
+};
+
+const PadInfo* GetPadInfos();
+/// Button name for the menu, or "None".
+const char* PadButtonName(int button);
+void ResetPadmapToDefaults();
+
 enum Upscaler : int { UpscalerOff = 0, UpscalerFsr3 = 1, UpscalerFsr4 = 2, UpscalerFsr411 = 3,
                       UpscalerTaa = 4, UpscalerCount };
 /// FSR 4 v07 or FSR 4.1.1: the same inputs, settings and placement in the frame.
@@ -93,6 +104,8 @@ struct Values {
     std::atomic<float> mk_deadzone{0.13f};
     std::atomic<float> mk_smoothing{0.0f};
     std::atomic<int> keybinds[BB_ACTION_COUNT];
+    /// Controller remap: padmap[game button] = physical button (BbPadButton) or BB_PAD_NONE.
+    std::atomic<int> padmap[BB_PAD_COUNT];
     Values();
     /// Applied at start (patches.py); the menu shows when a restart is needed.
     std::atomic<bool> effects[EffectCount]{};

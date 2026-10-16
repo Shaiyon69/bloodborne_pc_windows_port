@@ -69,7 +69,55 @@ bool l3_down = false, r3_down = false;
 bool dirty = false; // settings changed while open: saved on close
 float base_scale = 1.0f;
 int rebinding_action = -1;
+int rebinding_pad = -1;   // game button (BbPadButton) waiting for a pad button
 std::string rebinding_swap_msg;
+std::string pad_swap_msg;
+
+/// Gives `out` the physical button `src`; the game button that had it takes the old one.
+void AssignPad(int out, int src) {
+    auto& s = BbSettings::Get();
+    const int old_src = s.padmap[out].load();
+    int swapped = -1;
+    for (int b = 0; b < BB_PAD_COUNT; ++b) {
+        if (b != out && s.padmap[b].load() == src) {
+            s.padmap[b] = old_src;
+            swapped = b;
+            break;
+        }
+    }
+    s.padmap[out] = src;
+    if (swapped >= 0) {
+        const auto* info = BbSettings::GetPadInfos();
+        pad_swap_msg = std::string(Tr("Swapped with: ", "Переназначено с: ")) +
+                       (s.language.load() == BbSettings::LangRu ? info[swapped].label_ru : info[swapped].label_en);
+    } else {
+        pad_swap_msg.clear();
+    }
+    rebinding_pad = -1;
+    dirty = true;
+}
+
+/// Physical BbPadButton for an SDL gamepad button, or BB_PAD_NONE.
+int PadFromSdl(int button) {
+    switch (button) {
+    case SDL_GAMEPAD_BUTTON_SOUTH: return BB_PAD_CROSS;
+    case SDL_GAMEPAD_BUTTON_EAST: return BB_PAD_CIRCLE;
+    case SDL_GAMEPAD_BUTTON_WEST: return BB_PAD_SQUARE;
+    case SDL_GAMEPAD_BUTTON_NORTH: return BB_PAD_TRIANGLE;
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return BB_PAD_L1;
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return BB_PAD_R1;
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK: return BB_PAD_L3;
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return BB_PAD_R3;
+    case SDL_GAMEPAD_BUTTON_START: return BB_PAD_OPTIONS;
+    case SDL_GAMEPAD_BUTTON_BACK: return BB_PAD_SHARE;
+    case SDL_GAMEPAD_BUTTON_TOUCHPAD: return BB_PAD_TOUCHPAD;
+    case SDL_GAMEPAD_BUTTON_DPAD_UP: return BB_PAD_UP;
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return BB_PAD_DOWN;
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return BB_PAD_LEFT;
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return BB_PAD_RIGHT;
+    default: return BB_PAD_NONE;
+    }
+}
 
 // Present rate for the FPS counter and HUD telemetry.
 std::chrono::steady_clock::time_point last_present{};
@@ -261,7 +309,9 @@ void SetOpen(bool value) {
     }
     if (!value) {
         rebinding_action = -1;
+        rebinding_pad = -1;
         rebinding_swap_msg.clear();
+        pad_swap_msg.clear();
         if (dirty) {
             dirty = false;
             BbSettings::Save();
@@ -766,6 +816,67 @@ void Menu() {
         ImGui::EndChild();
     }
 
+    ImGui::SeparatorText(Tr("Controller bindings", "Назначение кнопок геймпада"));
+    Hint(Tr("Choose which pad button presses each game button. Click a row, then press a pad button "
+            "or pull a trigger; click the row again to cancel. Opening this menu with L3+R3 always "
+            "uses the physical sticks.",
+            "Выберите, какая кнопка геймпада нажимает каждую кнопку игры. Нажмите строку, затем кнопку "
+            "или курок геймпада; повторное нажатие строки отменяет. Меню всегда открывается "
+            "физическими L3+R3."));
+    if (ImGui::Button(Tr("Reset Controller to Defaults", "Сбросить геймпад по умолчанию"))) {
+        BbSettings::ResetPadmapToDefaults();
+        rebinding_pad = -1;
+        pad_swap_msg.clear();
+        dirty = true;
+    }
+    if (!pad_swap_msg.empty()) {
+        ImGui::TextColored(ImVec4(0.9f, 0.8f, 0.2f, 1.0f), "%s", pad_swap_msg.c_str());
+    }
+    const auto* pad_infos = BbSettings::GetPadInfos();
+    if (ImGui::BeginChild("PadBindsChild", ImVec2(0.0f, 260.0f * base_scale), true)) {
+        if (ImGui::BeginTable("PadBindingsTable", 3, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+            ImGui::TableSetupColumn(Tr("Game button", "Кнопка игры"), ImGuiTableColumnFlags_WidthStretch, 0.52f);
+            ImGui::TableSetupColumn(Tr("Pad button", "Кнопка геймпада"), ImGuiTableColumnFlags_WidthStretch, 0.36f);
+            ImGui::TableSetupColumn("##padclear", ImGuiTableColumnFlags_WidthFixed, 55.0f * base_scale);
+            ImGui::TableHeadersRow();
+            for (int b = 0; b < BB_PAD_COUNT; ++b) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextUnformatted(s.language.load() == BbSettings::LangRu ? pad_infos[b].label_ru : pad_infos[b].label_en);
+
+                ImGui::TableSetColumnIndex(1);
+                char btn_id[64];
+                const bool armed = rebinding_pad == b;
+                if (armed) {
+                    snprintf(btn_id, sizeof(btn_id), "%s###pad_%d", Tr("< Press pad button >", "< Нажмите кнопку >"), b);
+                    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.65f, 0.15f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.95f, 0.75f, 0.25f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+                } else {
+                    snprintf(btn_id, sizeof(btn_id), "%s###pad_%d", BbSettings::PadButtonName(s.padmap[b].load()), b);
+                }
+                if (ImGui::Button(btn_id, ImVec2(-FLT_MIN, 0.0f))) {
+                    rebinding_pad = armed ? -1 : b;
+                    pad_swap_msg.clear();
+                }
+                if (armed) {
+                    ImGui::PopStyleColor(3);
+                }
+
+                ImGui::TableSetColumnIndex(2);
+                char clr_id[32];
+                snprintf(clr_id, sizeof(clr_id), "%s###padclr_%d", Tr("Clear", "Сброс"), b);
+                if (ImGui::Button(clr_id, ImVec2(-FLT_MIN, 0.0f))) {
+                    s.padmap[b] = BB_PAD_NONE;
+                    dirty = true;
+                    if (rebinding_pad == b) rebinding_pad = -1;
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::EndChild();
+
     ImGui::Spacing();
     if (ImGui::Button(Tr("Close", "Закрыть"))) {
         keep_open = false;
@@ -1089,8 +1200,28 @@ bool HandleEvent(const SDL_Event& event) {
         if (!is_open) {
             return false;
         }
+        // Any pad button is a valid binding, so none cancels; the press never reaches ImGui.
+        if (rebinding_pad >= 0) {
+            if (const int src = PadFromSdl(button); down && src != BB_PAD_NONE) {
+                AssignPad(rebinding_pad, src);
+            }
+            return true;
+        }
         if (const ImGuiKey key = KeyFromGamepad(button); key != ImGuiKey_None) {
             io.AddKeyEvent(key, down);
+        }
+        return true;
+    }
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION: {
+        // Triggers bind past the same threshold the game uses (runtime_pad.c: > 30 of 255).
+        if (!is_open || rebinding_pad < 0) {
+            return false;
+        }
+        const int src = event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER    ? BB_PAD_L2
+                        : event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER ? BB_PAD_R2
+                                                                            : BB_PAD_NONE;
+        if (src != BB_PAD_NONE && event.gaxis.value > 30 * 128) {
+            AssignPad(rebinding_pad, src);
         }
         return true;
     }

@@ -38,6 +38,41 @@ const ActionInfo* GetActionInfos() {
     return s_action_infos;
 }
 
+static const PadInfo s_pad_infos[BB_PAD_COUNT] = {
+    {"cross", "Cross (Interact)", "Cross (Взаимодействие)"},
+    {"circle", "Circle (Dodge / Sprint)", "Circle (Уворот / рывок)"},
+    {"square", "Square (Use Item)", "Square (Предмет)"},
+    {"triangle", "Triangle (Heal)", "Triangle (Лечение)"},
+    {"l1", "L1 (Transform)", "L1 (Трансформация)"},
+    {"r1", "R1 (Light Attack)", "R1 (Обычная атака)"},
+    {"l2", "L2 (Firearm)", "L2 (Выстрел)"},
+    {"r2", "R2 (Heavy Attack)", "R2 (Сильная атака)"},
+    {"l3", "L3", "L3"},
+    {"r3", "R3 (Lock-On)", "R3 (Захват цели)"},
+    {"options", "Options (Menu)", "Options (Меню)"},
+    {"share", "Share", "Share"},
+    {"touchpad", "Touchpad (Gestures)", "Touchpad (Жесты)"},
+    {"up", "D-Pad Up (Blood Bullets)", "Вверх (Кровавые пули)"},
+    {"down", "D-Pad Down (Switch Item)", "Вниз (Сменить предмет)"},
+    {"left", "D-Pad Left (Left Weapon)", "Влево (Левое оружие)"},
+    {"right", "D-Pad Right (Right Weapon)", "Вправо (Правое оружие)"},
+};
+
+const PadInfo* GetPadInfos() {
+    return s_pad_infos;
+}
+
+const char* PadButtonName(int button) {
+    return button >= 0 && button < BB_PAD_COUNT ? s_pad_infos[button].name : "none";
+}
+
+static int PadButtonFromName(const std::string& name) {
+    for (int b = 0; b < BB_PAD_COUNT; ++b) {
+        if (name == s_pad_infos[b].name) return b;
+    }
+    return BB_PAD_NONE;
+}
+
 const char* KeyCodeToString(int code) {
     if (code <= 0) return "None";
     if (code == BB_KEY_MOUSE_LEFT) return "Mouse Left";
@@ -73,12 +108,23 @@ Values::Values() {
     for (int i = 0; i < BB_ACTION_COUNT; ++i) {
         keybinds[i] = s_action_infos[i].default_code;
     }
+    for (int b = 0; b < BB_PAD_COUNT; ++b) {
+        padmap[b] = b;
+    }
 }
 
 void ResetKeybindsToDefaults() {
     auto& v = Get();
     for (int i = 0; i < BB_ACTION_COUNT; ++i) {
         v.keybinds[i] = s_action_infos[i].default_code;
+    }
+    Save();
+}
+
+void ResetPadmapToDefaults() {
+    auto& v = Get();
+    for (int b = 0; b < BB_PAD_COUNT; ++b) {
+        v.padmap[b] = b;
     }
     Save();
 }
@@ -164,6 +210,9 @@ void Set(Values& v, const std::string& key, const std::string& value) {
                 break;
             }
         }
+    } else if (key.rfind("pad.", 0) == 0) {
+        const int out = PadButtonFromName(key.substr(4));
+        if (out != BB_PAD_NONE) v.padmap[out] = PadButtonFromName(value);
     } else if (key == "output_res") {
         for (int r = 0; r < OutputCount; ++r) {
             if (value == std::to_string(OutputWidths[r]) + "x" + std::to_string(OutputHeights[r])) {
@@ -326,6 +375,10 @@ void Save() {
     // Action keybindings
     for (int a = 0; a < BB_ACTION_COUNT; ++a) {
         std::fprintf(file, "%s=%s\n", s_action_infos[a].ini_key, KeyCodeToString(v.keybinds[a].load()));
+    }
+    // Controller remap: pad.<game button>=<physical button>
+    for (int b = 0; b < BB_PAD_COUNT; ++b) {
+        std::fprintf(file, "pad.%s=%s\n", s_pad_infos[b].name, PadButtonName(v.padmap[b].load()));
     }
     std::fclose(file);
 }

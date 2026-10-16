@@ -452,6 +452,15 @@ extern "C" void bbgpu_get_all_action_bindings(int* out_bindings, int count) {
     }
 }
 
+extern "C" void bbgpu_get_pad_map(int* out, int count) {
+    if (!out || count <= 0) return;
+    const int n = count < BB_PAD_COUNT ? count : BB_PAD_COUNT;
+    auto& s = BbSettings::Get();
+    for (int i = 0; i < n; ++i) {
+        out[i] = s.padmap[i].load();
+    }
+}
+
 extern "C" void bbgpu_set_action_binding(int action, int code) {
     if (action < 0 || action >= BB_ACTION_COUNT) return;
     BbSettings::Get().keybinds[action] = code;

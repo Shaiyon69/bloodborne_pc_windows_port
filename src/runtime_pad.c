@@ -133,22 +133,37 @@ static void sample_host(PadData *d) {
     if (bbgpu_overlay_captures_input() || bbgpu_text_input_is_active()) return; /* settings menu open or typing: neutral input */
     const bool *k=SDL_WasInit(SDL_INIT_VIDEO) ? SDL_GetKeyboardState(NULL) : NULL;
     if (g) {
-        static const struct { SDL_GamepadButton sdl; uint32_t ps; } map[]={
+        /* Indexed by BbPadButton: the physical button and the game button it is by default.
+           L2/R2 are the trigger axes. Share (Back) clicks the touchpad, as pads without one need. */
+        static const struct { int sdl; uint32_t ps; } pad[BB_PAD_COUNT]={
             {SDL_GAMEPAD_BUTTON_SOUTH,BTN_CROSS}, {SDL_GAMEPAD_BUTTON_EAST,BTN_CIRCLE},
             {SDL_GAMEPAD_BUTTON_WEST,BTN_SQUARE}, {SDL_GAMEPAD_BUTTON_NORTH,BTN_TRIANGLE},
             {SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,BTN_L1}, {SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER,BTN_R1},
+            {-1,BTN_L2}, {-1,BTN_R2},
             {SDL_GAMEPAD_BUTTON_LEFT_STICK,BTN_L3}, {SDL_GAMEPAD_BUTTON_RIGHT_STICK,BTN_R3},
             {SDL_GAMEPAD_BUTTON_START,BTN_OPTIONS}, {SDL_GAMEPAD_BUTTON_BACK,BTN_TOUCHPAD},
             {SDL_GAMEPAD_BUTTON_TOUCHPAD,BTN_TOUCHPAD},
             {SDL_GAMEPAD_BUTTON_DPAD_UP,BTN_UP}, {SDL_GAMEPAD_BUTTON_DPAD_DOWN,BTN_DOWN},
             {SDL_GAMEPAD_BUTTON_DPAD_LEFT,BTN_LEFT}, {SDL_GAMEPAD_BUTTON_DPAD_RIGHT,BTN_RIGHT},
         };
-        for (size_t i=0;i<sizeof(map)/sizeof(*map);++i) if (SDL_GetGamepadButton(g,map[i].sdl)) d->buttons|=map[i].ps;
+        /* Analog value per physical button: the trigger's, or full when a button is down. */
+        uint8_t phys[BB_PAD_COUNT];
+        for (int b=0;b<BB_PAD_COUNT;++b)
+            phys[b]=pad[b].sdl>=0 && SDL_GetGamepadButton(g,(SDL_GamepadButton)pad[b].sdl) ? 255 : 0;
+        phys[BB_PAD_L2]=trigger(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_LEFT_TRIGGER));
+        phys[BB_PAD_R2]=trigger(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
+        int padmap[BB_PAD_COUNT];
+        bbgpu_get_pad_map(padmap,BB_PAD_COUNT);
+        for (int out=0;out<BB_PAD_COUNT;++out) {
+            const int src=padmap[out];
+            if (src<0 || src>=BB_PAD_COUNT) continue;
+            const uint8_t v=phys[src];
+            if (out==BB_PAD_L2) { if (v>d->l2) d->l2=v; }
+            else if (out==BB_PAD_R2) { if (v>d->r2) d->r2=v; }
+            if (v>30) d->buttons|=pad[out].ps;
+        }
         d->left_x=axis(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_LEFTX)); d->left_y=axis(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_LEFTY));
         d->right_x=axis(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_RIGHTX)); d->right_y=axis(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_RIGHTY));
-        d->l2=trigger(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_LEFT_TRIGGER)); d->r2=trigger(SDL_GetGamepadAxis(g,SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
-        if (d->l2>30) d->buttons|=BTN_L2;
-        if (d->r2>30) d->buttons|=BTN_R2;
         if (SDL_GetNumGamepadTouchpads(g)>0) {
             const int fingers=SDL_GetNumGamepadTouchpadFingers(g,0);
             for (int finger=0;finger<fingers && d->touch_count<2;++finger) {

@@ -32,6 +32,9 @@ void bbgpu_get_all_action_bindings(int *out_bindings, int count) {
     if (out_bindings) memset(out_bindings, 0, sizeof(int) * count);
 }
 void bbgpu_set_action_binding(int action, int code) { (void)action; (void)code; }
+void bbgpu_get_pad_map(int *out, int count) {
+    for (int i = 0; out && i < count; ++i) out[i] = i;
+}
 uint64_t host_monotonic_ns(void) {
     LARGE_INTEGER freq, counter;
     QueryPerformanceFrequency(&freq);
